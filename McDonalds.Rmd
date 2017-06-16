@@ -94,7 +94,9 @@ dfCal <- dfCal[order(-dfCal$cal),]
 # Grabbing top 10 calorically dense foods, to ensure graph isn't too crowded
 dfCal10 <- head(dfCal, 10)
 # Creating graph
-w <- ggplot(data = dfCal10, aes(x = reorder(Item, cal), y = cal, fill = Category)) + geom_bar(stat = "identity") + geom_text(aes(x = Item, y = cal, label = Category, colour = "#535353"), hjust="right", nudge_y = -5)+ coord_flip() + labs(x = "", y = "Calories / oz", title = "McDonald's Most Calorically Dense Foods", caption = "Source: Kaggle.com") + themeline + scale_fill_economist() + scale_colour_manual(values = "#FFFFFF") + mytheme
+
+palette <- brewer.pal("YlOrRd",n=3)
+w <- ggplot(data = dfCal10, aes(x = reorder(Item, cal), y = cal, fill = Category)) + geom_bar(aes(alpha = .85),stat = "identity", colour="#303030") + geom_text(aes(x = Item, y = cal, label = Category, colour = "#535353", fontface="bold"), hjust="right", nudge_y = -5)+ coord_flip() + labs(x = "", y = "Calories / oz", title = "McDonald's Most Calorically Dense Foods", caption = "Source: Kaggle.com") + themeline + scale_fill_manual(values = palette) + scale_colour_manual(values = "#535353") + mytheme
 
 # Exporting Graph
 png(filename="CaloricallyDense.png", width = 2000, height = 1500, res = 200)
