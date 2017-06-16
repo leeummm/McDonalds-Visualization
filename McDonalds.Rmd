@@ -1,0 +1,115 @@
+---
+title: "McDonalds Graph"
+author: "Liam Schilling"
+date: "6/15/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Load libraries
+library(tidyverse)
+library('RColorBrewer')
+library(ggthemes)
+
+mytheme <- theme(panel.background = element_rect(fill = "#F0F0F0"),
+                 plot.background = element_rect(fill = "#F0F0F0"),
+                 panel.border = element_rect(colour="#f0f0f0", fill = NA),
+                 panel.grid.major = element_line(colour="#d0d0d0",size=.75),
+                 axis.text.y=element_text(size = 11,colour="#535353",face="bold"),
+                 plot.title=element_text(face="bold", hjust=0,vjust=2,size = 20,colour="#3c3c3c"),
+                 plot.caption = element_text(size=6),
+                 axis.text.x = element_text(size = 11,colour="#535353",face="bold"),
+                 plot.subtitle = element_text(size = 11, colour="#535353",face="bold", hjust=0,vjust=2),
+                 legend.position = "none",
+                 axis.title.y = element_text(size=11,colour="#535353",face="bold",lineheight = 3, hjust=0),
+                 axis.title.x = element_text(size=11,colour="#535353",face="bold",lineheight=3,vjust=0),
+                 plot.margin = unit(c(1,1,.5,.7),"cm")
+                 )
+themeline <- geom_hline(yintercept=0,size=1.2,colour="#535353")
+# Import Data
+df <- read.csv("menu.csv")
+
+# Sorting data by calories
+df <- df[order(-df$Calories),]
+
+# Creating breakfast dataset
+dfB <- df %>% group_by(Category, Item) %>% summarise(Calories = sum(Calories)) %>% filter(Category == "Breakfast")
+
+# Ordering by Calories
+dfB <- dfB[order(-dfB$Calories),]
+
+#Selecting top 10 items
+dfB10 <- head(dfB, 10)
+
+dfB10$top <- 0
+dfB10$top[dfB10$Calories > 1100] <- 1
+dfB10$top <- as.factor(dfB10$top)
+```
+
+# Calorically Dense Data Prep
+```{r}
+# Converting all items to ounces
+floz <- 29.5735296875
+
+dfClean <- df
+# Cleaning data
+# Currently, the serving sizes contain things like "fl oz" or "(635 g)"
+# Which all need to be gone for this calculation to work
+# Using gsub to delete all () and characters that aren't digits
+dfClean$Serving.Size <- gsub("[()\\D]","",dfClean$Serving.Size)
+
+# Next problem was that some of the data had fl oz and gram weights, which causes an issue
+# Only grabbing the first 4 characters which I think will do a good enough job
+# Of grabbing only what I want (ounce information)
+dfClean$serve <- substr(dfClean$Serving.Size,0,4)
+
+# After scanning data and seeing it worked, now removing everything but numbers
+dfClean$serve <- gsub("[A-z]","",dfClean$serve)
+
+# Converting to integer so I can divide
+dfClean$serve <- as.integer(dfClean$serve)
+
+# Dividing calories by ounces to get calories / ounce
+dfClean$cal <- dfClean$Calories / dfClean$serve
+
+# Since the data was so messy for beverages, removing those
+# I don't want to convert the fl oz to ounces
+# Maybe next time!
+dfCal <- dfClean[dfClean$Category != "Beverages",]
+dfCal <- dfCal[dfCal$Category != "Coffee & Tea",]
+dfCal <- dfCal[dfCal$Category != "Smoothies & Shakes",]
+
+# Now only grabbing the category, item, and cals/oz
+dfCal <- dfCal[,c(1,2,26)]
+# Ordering descending by calories/oz
+dfCal <- dfCal[order(-dfCal$cal),]
+```
+# Calorically Dense Graph Code
+```{r}
+# Grabbing top 10 calorically dense foods, to ensure graph isn't too crowded
+dfCal10 <- head(dfCal, 10)
+# Creating graph
+w <- ggplot(data = dfCal10, aes(x = reorder(Item, cal), y = cal, fill = Category)) + geom_bar(stat = "identity") + geom_text(aes(x = Item, y = cal, label = Category, colour = "#535353"), hjust="right", nudge_y = -5)+ coord_flip() + labs(x = "", y = "Calories / oz", title = "McDonald's Most Calorically Dense Foods", caption = "Source: Kaggle.com") + themeline + scale_fill_economist() + scale_colour_manual(values = "#FFFFFF") + mytheme
+
+# Exporting Graph
+png(filename="CaloricallyDense.png", width = 2000, height = 1500, res = 200)
+w
+dev.off()
+```
+
+# In Progress
+```{r}
+x <- ggplot(data = dfB10) + geom_bar(aes(x = reorder(Item, Calories), y=Calories, fill = top, alpha = .75), colour = "#303036", stat = "identity") + coord_flip() + guides(fill=FALSE, alpha = FALSE) + theme_hc() + theme(axis.text.y=element_text(size = 6), plot.title=element_text(size = 18), plot.caption = element_text(size=6), axis.text.x = element_text(size = 8), plot.subtitle = element_text(size = 10)) + labs(title="McDonald's Breakfast Items", subtitle = "Top 10 Highest Calorie Foods", caption = "Source: Kaggle.com") + scale_fill_economist() + labs(y = "Calories", x = "")
+
+y <- ggplot(data = dfB10) + geom_bar(aes(x = reorder(Item, Calories), y=Calories, fill = top, alpha = .75), colour = "#303036", stat = "identity") + geom_text(aes(label=Item, x = Item, y = Calories, fontface = "bold"), hjust="right", nudge_y = -5)+ coord_flip() + guides(fill=FALSE, alpha = FALSE, x = FALSE) + labs(title="McDonald's Breakfast Items", subtitle = "Top 10 Highest Calorie Foods", caption = "Source: Kaggle.com") + scale_fill_economist() + labs(y = "Calories", x = "") + mytheme + scale_color_manual(values = "#535353") + geom_hline(yintercept=0,size=1.2,colour="#535353") + theme(axis.text.y = element_blank())
+
+ggsave(filename = "plot1.png", width = 8, height = 6, dpi=600,plot = y)
+```
+
+
+
